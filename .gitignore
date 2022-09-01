@@ -1,0 +1,8 @@
+*__pycache__
+*.DS_Store
+*.txt
+*.pdf
+*.png
+*.out
+*.so
+*.o
