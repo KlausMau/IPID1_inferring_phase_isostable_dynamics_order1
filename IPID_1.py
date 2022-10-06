@@ -1,6 +1,8 @@
-from math import pi, sin, cos, ceil, floor, sqrt
 import numpy as np
 import numba as nb
+
+# for their integer output
+from math import floor, ceil
 
 # compute function from Fourier modes
 
@@ -11,8 +13,8 @@ def f_from_sol(fi, sol):
 		res = 0.
 		#for n in range(1, N_Fourier):
 		for n in range(1, N_Fourier+1):
-			res += float(sol[2*n   -2])*cos(n*fi)
-			res += float(sol[2*n+1 -2])*sin(n*fi)
+			res += float(sol[2*n   -2])*np.cos(n*fi)
+			res += float(sol[2*n+1 -2])*np.sin(n*fi)
 		return res
 
 def f_from_sol_array(sol, samples = 200):
@@ -28,30 +30,30 @@ def PRC_infer_step(events, phase, forcing, N_Fourier):
 	# calculates the Fourier moments of the PRC ("sol")
 
 	A = [[] for i in range(len(events)-1)]
-	b = np.matrix([2*pi for i in range(len(events)-1)]).transpose()
+	b = np.matrix([2*np.pi for i in range(len(events)-1)]).transpose()
 	for i in range(len(events)-1):
 		A[i].append(events[i+1]-events[i]) # period
 		# fourier integrals
 		integral = forcing[ceil(events[i])-1]*(ceil(events[i])-events[i]) # first fractional timestep
-		for t in range(ceil(events[i]),floor(events[i+1])):
+		for t in range(ceil(events[i]), floor(events[i+1])):
 			integral += forcing[t]
 		integral += forcing[floor(events[i+1])]*(events[i+1]-floor(events[i+1])) # last fractional timestep
 		A[i].append(integral) # natural frequency
 		for n in range(1,N_Fourier):
 			# cos
-			integral = forcing[ceil(events[i])-1]*cos(n*phase[ceil(events[i])-1])*(ceil(events[i])-events[i]) # first fractional timestep
+			integral = forcing[ceil(events[i])-1]*np.cos(n*phase[ceil(events[i])-1])*(ceil(events[i])-events[i]) # first fractional timestep
 
 			for t in range(ceil(events[i]),floor(events[i+1])):	
-				integral += forcing[t]*cos(n*phase[t])
+				integral += forcing[t]*np.cos(n*phase[t])
 			#print("index = "+str(floor(events[i+1]))+" and len(phase) = "+str(len(phase)))
-			integral += forcing[floor(events[i+1])]*cos(n*phase[floor(events[i+1])])*(events[i+1]-floor(events[i+1])) # last fractional timestep
+			integral += forcing[floor(events[i+1])]*np.cos(n*phase[floor(events[i+1])])*(events[i+1]-floor(events[i+1])) # last fractional timestep
 			A[i].append(integral)
 			
 			# sin
-			integral = forcing[ceil(events[i])-1]*sin(n*phase[ceil(events[i])-1])*(ceil(events[i])-events[i]) # first fractional timestep
-			for t in range(ceil(events[i]),floor(events[i+1])):
-				integral += forcing[t]*sin(n*phase[t])
-			integral += forcing[floor(events[i+1])]*sin(n*phase[floor(events[i+1])])*(events[i+1]-floor(events[i+1])) # last fractional timestep
+			integral = forcing[ceil(events[i])-1]*np.sin(n*phase[ceil(events[i])-1])*(ceil(events[i])-events[i]) # first fractional timestep
+			for t in range(ceil(events[i]), floor(events[i+1])):
+				integral += forcing[t]*np.sin(n*phase[t])
+			integral += forcing[floor(events[i+1])]*np.sin(n*phase[floor(events[i+1])])*(events[i+1]-floor(events[i+1])) # last fractional timestep
 			A[i].append(integral)
 
 	# minimization
@@ -76,20 +78,14 @@ def PRC_infer_step(events, phase, forcing, N_Fourier):
 		psi = ph + (sol[0]+f_from_sol(ph,sol)*forcing[floor(events[i+1])])*(events[i+1]-floor(events[i+1])) # last fractional timestep
 		psis.append(psi)
 		# rescale so its 2pi at the end
-		for t in range(ceil(events[i]),floor(events[i+1])+1):
-			new_phase[t] = 2*pi*new_phase[t]/psi
+		for t in range(ceil(events[i]), floor(events[i+1])+1):
+			new_phase[t] = 2*np.pi*new_phase[t]/psi
 
 	# error
-	diffs = [(psi-2*pi)**2 for psi in psis]
-	error = sqrt(np.average(diffs))
-	# 0 error
-	Ts = [events[i+1]-events[i] for i in range(len(events)-1)]
-	avg_T = np.average(Ts)
-	avg_w = 2*pi/avg_T
-	diffs = [(avg_w*T-2*pi)**2 for T in Ts]
-	error0 = sqrt(np.average(diffs))
-
-	return sol, new_phase, error, error0
+	diffs = [(psi-2*np.pi)**2 for psi in psis]
+	error = np.sqrt(np.average(diffs))
+	
+	return sol, new_phase, error
 
 # thresholding
 
@@ -109,6 +105,13 @@ def thresholding_signal(signal, threshold):
 				events.append(i+abs(sdif2)/(abs(sdif2)+abs(sdif3)))
 	return events
 
+def error_0(events):
+	Ts = [events[i+1]-events[i] for i in range(len(events)-1)]
+	avg_T = np.average(Ts)
+	avg_w = 2*np.pi/avg_T
+	diffs = [(avg_w*T-2*np.pi)**2 for T in Ts]
+	return np.sqrt(np.average(diffs))
+
 # initialization
 
 def initialize_phase(events):
@@ -121,7 +124,7 @@ def initialize_phase(events):
 	for i in range(len(events)-1):
 		T = events[i+1]-events[i]
 		for t in range(ceil(events[i]), floor(events[i+1])+1):
-			phase.append(2*pi*(t-events[i])/T)
+			phase.append(2*np.pi*(t-events[i])/T)
 	
 	phase.append(-1.)
 
@@ -133,7 +136,8 @@ def infer_response_curves(signal, forcing, threshold=0., iterations = 8, N_Fouri
 
 	print('thresholding signal')
 	events = thresholding_signal(signal, threshold)
-	#print(events)
+
+	E0 = error_0(events) 
 
 	print('initialize phase')
 	phase = []
@@ -148,10 +152,10 @@ def infer_response_curves(signal, forcing, threshold=0., iterations = 8, N_Fouri
 	for i in range(iterations):
 		print('i='+ str(i))
 		
-		sol_new, phase_new, error, error0  = PRC_infer_step(events, phase[-1], forcing, N_Fourier)
-		#sol_new, phase_new, error, error0  = f(events, phase[-1], forcing, N_Fourier)
+		sol_new, phase_new, error  = PRC_infer_step(events, phase[-1], forcing, N_Fourier)
+		#sol_new, phase_new, error  = f(events, phase[-1], forcing, N_Fourier)
 		
-		print('E/E0='+ str(np.round(error/error0, 5)))
+		print('E/E0='+ str(np.round(error/E0, 5)))
 		
 		sol.append(sol_new)
 		phase.append(phase_new)
