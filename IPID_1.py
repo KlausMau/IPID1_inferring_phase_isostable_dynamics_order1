@@ -21,47 +21,20 @@ def f_from_modes_array(Fourier_modes, samples = 200):
 
 @nb.njit(parallel=True)
 def A_prep(events, phase, forcing, dt, N_Fourier):
-	#A = [[] for i in range(len(events)-1)]
-	
-	A = np.zeros((len(events)-1, 2*N_Fourier)) #, dtype=float)
+	A = np.zeros((len(events)-1, 2*N_Fourier)) 
 
 	for i in nb.prange(len(events)-1):
-		
-		#A[i].append((events[i+1]-events[i])*dt) # period/natural frequency
+		# period/natural frequency
 		A[i,0] = (events[i+1]-events[i])*dt
-		#integral = forcing[ceil(events[i])-1]*(ceil(events[i])-events[i]) # first fractional timestep
-		#for t in range(ceil(events[i]), floor(events[i+1])):
-		#	integral += forcing[t]
-		#integral += forcing[floor(events[i+1])]*(events[i+1]-floor(events[i+1])) # last fractional timestep
-		#integral = np.trapz(forcing[events[i]:events[i+1]], dx=dt)
-		#A[i].append(integral) # Z_0
-
+		
+		# Z_0
 		A[i,1] = np.trapz(forcing[events[i]:events[i+1]], dx=dt)
 		
 		for n in nb.prange(1,N_Fourier):
 			# cos
-			#integral = forcing[ceil(events[i])-1]*np.cos(n*phase[ceil(events[i])-1])*(ceil(events[i])-events[i]) # first fractional timestep
-
-			#for t in range(ceil(events[i]),floor(events[i+1])):	
-			#	integral += forcing[t]*np.cos(n*phase[t])
-			#print("index = "+str(floor(events[i+1]))+" and len(phase) = "+str(len(phase)))
-			#integral += forcing[floor(events[i+1])]*np.cos(n*phase[floor(events[i+1])])*(events[i+1]-floor(events[i+1])) # last fractional timestep
-			
-			#integral = np.trapz(np.cos(n*phase[events[i]:events[i+1]])*forcing[events[i]:events[i+1]], dx=dt)
-			#A[i].append(integral)
 			A[i,2*n] = np.trapz(np.cos(n*phase[events[i]:events[i+1]])*forcing[events[i]:events[i+1]], dx=dt)
-			
 			# sin
-			#integral = forcing[ceil(events[i])-1]*np.sin(n*phase[ceil(events[i])-1])*(ceil(events[i])-events[i]) # first fractional timestep
-			#for t in range(ceil(events[i]), floor(events[i+1])):
-			#		integral += forcing[t]*np.sin(n*phase[t])
-			#integral += forcing[floor(events[i+1])]*np.sin(n*phase[floor(events[i+1])])*(events[i+1]-floor(events[i+1])) # last fractional timestep
-			
-			#integral = np.trapz(np.sin(n*phase[events[i]:events[i+1]])*forcing[events[i]:events[i+1]], dx=dt)
 			A[i,2*n+1] = np.trapz(np.sin(n*phase[events[i]:events[i+1]])*forcing[events[i]:events[i+1]], dx=dt)
-			
-			#A[i].append(integral)
-
 	return  A 
 
 # inference steps
