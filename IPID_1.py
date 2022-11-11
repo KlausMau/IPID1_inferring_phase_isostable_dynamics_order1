@@ -227,26 +227,26 @@ def IRC_infer_step(events, phase, psi, signal_at_events, forcing, x0, dt, N_Four
 
 	return kappa, x0_new, IRC_modes, new_psi, error
 
-#########################
-### quick "do it all" ###
-#########################
+###################################
+### inference of phase dynamics ###
+###################################
 
-def infer_response_curves(signal, forcing, dt, threshold=0., threshold_phase=np.pi, iterations = 8, N_Fourier=10):
+def infer_phase_respones(signal, forcing, dt, threshold_signal=0., iterations=8, N_Fourier=10):
 
+	signal = np.array(signal)
 	forcing = np.array(forcing)
 
 	### phase ###
 
 	print('thresholding signal')
-	events = thresholding_signal(signal, threshold)
+	events = thresholding_signal(signal, threshold_signal)
 
-	E_Z0 = error_Z0(events) 
+	E_Z0 = error_Z0(events)
 
 	print('initialize phase')
 	phase = [initialize_phase(events, len(signal))]
 
 	print('iterating PRC inference')
-
 	omega = []
 	PRC_modes = []
 
@@ -259,10 +259,15 @@ def infer_response_curves(signal, forcing, dt, threshold=0., threshold_phase=np.
 		PRC_modes.append(PRC_modes_new)
 		phase.append(phase_new)
 
-	### isostable amplitude ###
+	return omega, PRC_modes, phase,
 
-	print('thresholding inferred phase')
-	events = thresholding_signal(phase[-1], threshold_phase)
+def infer_isostable_respones(signal, forcing, dt, phase, threshold_phase=np.pi, iterations=8, N_Fourier=10):
+	
+	signal = np.array(signal)
+	forcing = np.array(forcing)
+
+	print('thresholding phase')
+	events = thresholding_signal(phase, threshold_phase)
 	
 	signal_at_events = signal[events]
 
@@ -276,7 +281,7 @@ def infer_response_curves(signal, forcing, dt, threshold=0., threshold_phase=np.
 	x0 = [np.average(signal_at_events)]
 
 	for i in range(iterations):
-		kappa_new, x0_new, IRC_modes_new, psi_new, E_I  = IRC_infer_step(events, phase[-1], psi[-1], signal_at_events, forcing, x0[-1], dt, N_Fourier)
+		kappa_new, x0_new, IRC_modes_new, psi_new, E_I  = IRC_infer_step(events, phase, psi[-1], signal_at_events, forcing, x0[-1], dt, N_Fourier)
 		E_I0 = error_I0(signal_at_events, x0_new)
 
 		print('i='+ str(i) + ': E_I/E_I0='+ str(np.round(E_I/E_I0, 5)))
@@ -285,5 +290,21 @@ def infer_response_curves(signal, forcing, dt, threshold=0., threshold_phase=np.
 		IRC_modes.append(IRC_modes_new)
 		x0.append(x0_new)
 		psi.append(psi_new)
+
+	return kappa, IRC_modes, x0, psi
+
+#########################
+### quick "do it all" ###
+#########################
+
+def infer_response_curves(*args, params_phase = {}, params_iso={}):
+
+	### phase ###
+
+	omega, PRC_modes, phase = infer_phase_respones(*args, **params_phase)
+
+	### isostable amplitude ###
+
+	kappa, IRC_modes, x0, psi = infer_isostable_respones(*args, phase[-1], **params_iso)
 
 	return omega, PRC_modes, phase, kappa, IRC_modes, x0, psi
