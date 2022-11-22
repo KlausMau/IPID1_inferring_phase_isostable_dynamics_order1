@@ -104,14 +104,16 @@ psi_truth = isostable_amplitude_Stuart_Landau(states[0], states[1])
 
 signal = states[1]
 
-threshold = 0.
+threshold = 0.1
 
 omega_infer, PRC_modes, phase, kappa_infer, IRC_modes, x0, psi = IPID_1.infer_response_curves(
-								signal, stimulation, dt, 
-                                threshold=threshold,
-								threshold_phase=0.5*np.pi,
-                                N_Fourier=8,
-                                iterations=12)
+												signal, stimulation, dt, 
+                                                params_phase={'threshold_signal': threshold,
+															  'N_Fourier': 8,
+															  'iterations': 5},
+                                                params_iso={'threshold_phase': 0.5*np.pi,
+															'N_Fourier': 8,
+															'iterations': 20})
 
 ###############
 ### results ###

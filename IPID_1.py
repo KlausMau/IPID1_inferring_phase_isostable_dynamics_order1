@@ -171,13 +171,14 @@ def A_IRC_prep(events, phase, psi, forcing, x0, dt, N_Fourier):
 		A[i,2*N_Fourier] = -(events[i+1]-events[i])*dt
 	return A
 
-def error_I0(signal_at_events, x0):
+def error_I0(signal_at_events):
 	'''
 	calculates error E_I0
 	'''
 
-	a_sqs = [(s_n-x0)**2 for s_n in signal_at_events]
-	return np.sqrt(np.average(a_sqs))
+	#a_sqs = [(s_n-x0)**2 for s_n in signal_at_events]
+	#return np.sqrt(np.average(a_sqs))
+	return np.std(signal_at_events)
 
 def IRC_infer_step(events, phase, psi, signal_at_events, forcing, x0, dt, N_Fourier):
 	'''one iteration of IRC inference 
@@ -231,80 +232,84 @@ def IRC_infer_step(events, phase, psi, signal_at_events, forcing, x0, dt, N_Four
 ### inference of phase dynamics ###
 ###################################
 
-def infer_phase_respones(signal, forcing, dt, threshold_signal=0., iterations=8, N_Fourier=10):
+def infer_phase_respones(signal, forcing, dt, threshold_signal=0., iterations=8, N_Fourier=10, SpeakToMe=True):
 
 	signal = np.array(signal)
 	forcing = np.array(forcing)
 
 	### phase ###
 
-	print('thresholding signal')
+	if SpeakToMe==True: print('thresholding signal')
 	events = thresholding_signal(signal, threshold_signal)
 
 	E_Z0 = error_Z0(events)
 
-	print('initialize phase')
+	if SpeakToMe==True: print('initialize phase')
 	phase = [initialize_phase(events, len(signal))]
 
-	print('iterating PRC inference')
+	if SpeakToMe==True: print('iterating PRC inference')
 	omega = []
 	PRC_modes = []
+	E_Z = []
 
 	for i in range(iterations):
-		omega_new, PRC_modes_new, phase_new, E_Z  = PRC_infer_step(events, phase[-1], forcing, dt, N_Fourier)
+		omega_new, PRC_modes_new, phase_new, E_Z_new  = PRC_infer_step(events, phase[-1], forcing, dt, N_Fourier)
 		
-		print('i='+ str(i) + ': E_Z/E_Z0='+ str(np.round(E_Z/E_Z0, 5)))
+		if SpeakToMe==True: print('i='+ str(i) + ': E_Z/E_Z0='+ str(np.round(E_Z_new/E_Z0, 5)))
 		
 		omega.append(omega_new)
 		PRC_modes.append(PRC_modes_new)
 		phase.append(phase_new)
+		E_Z.append(E_Z_new)
 
-	return omega, PRC_modes, phase,
+	return omega, PRC_modes, phase, E_Z, E_Z0
 
-def infer_isostable_respones(signal, forcing, dt, phase, threshold_phase=np.pi, iterations=8, N_Fourier=10):
+def infer_isostable_respones(signal, forcing, dt, phase, threshold_phase=np.pi, iterations=8, N_Fourier=10, SpeakToMe=True):
 	
 	signal = np.array(signal)
 	forcing = np.array(forcing)
 
-	print('thresholding phase')
+	if SpeakToMe==True: print('thresholding phase')
 	events = thresholding_signal(phase, threshold_phase)
 	
 	signal_at_events = signal[events]
-
-	print('initialize isostable amplitude')
+	E_I0 = error_I0(signal_at_events)
+	
+	if SpeakToMe==True: print('initialize isostable amplitude')
 	psi = [initialize_psi(signal_at_events, events, len(signal))]
 	
-	print('iterating IRC inference')
+	if SpeakToMe==True: print('iterating IRC inference')
 
 	kappa = []
 	IRC_modes = []
 	x0 = [np.average(signal_at_events)]
+	E_I  = []
 
 	for i in range(iterations):
-		kappa_new, x0_new, IRC_modes_new, psi_new, E_I  = IRC_infer_step(events, phase, psi[-1], signal_at_events, forcing, x0[-1], dt, N_Fourier)
-		E_I0 = error_I0(signal_at_events, x0_new)
+		kappa_new, x0_new, IRC_modes_new, psi_new, E_I_new  = IRC_infer_step(events, phase, psi[-1], signal_at_events, forcing, x0[-1], dt, N_Fourier)
 
-		print('i='+ str(i) + ': E_I/E_I0='+ str(np.round(E_I/E_I0, 5)))
+		if SpeakToMe==True: print('i='+ str(i) + ': E_I/E_I0='+ str(np.round(E_I_new/E_I0, 5)))
 		
 		kappa.append(kappa_new)
 		IRC_modes.append(IRC_modes_new)
 		x0.append(x0_new)
 		psi.append(psi_new)
+		E_I.append(E_I_new)
 
-	return kappa, IRC_modes, x0, psi
+	return kappa, IRC_modes, x0, psi, E_I, E_I0
 
 #########################
 ### quick "do it all" ###
 #########################
 
-def infer_response_curves(*args, params_phase = {}, params_iso={}):
+def infer_response_curves(*args, params_phase = {}, params_iso = {}):
 
 	### phase ###
 
-	omega, PRC_modes, phase = infer_phase_respones(*args, **params_phase)
+	omega, PRC_modes, phase, E_Z, E_Z0 = infer_phase_respones(*args, **params_phase)
 
 	### isostable amplitude ###
 
-	kappa, IRC_modes, x0, psi = infer_isostable_respones(*args, phase[-1], **params_iso)
+	kappa, IRC_modes, x0, psi, E_I, E_I0 = infer_isostable_respones(*args, phase[-1], **params_iso)
 
 	return omega, PRC_modes, phase, kappa, IRC_modes, x0, psi
