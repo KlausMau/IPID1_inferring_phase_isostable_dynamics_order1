@@ -16,7 +16,7 @@ def f_from_modes_array(Fourier_modes, samples = 200):
 	#args = np.linspace(0, 2*np.pi, samples)
 	return [f_from_modes(arg, Fourier_modes) for arg in np.linspace(0, 2*np.pi, samples)]
 
-def thresholding_signal(signal, threshold):
+def thresholding_signal(signal, threshold, direction=1):
 	'''
 	thresholds a signal at "threshold"
 	returns events
@@ -25,13 +25,16 @@ def thresholding_signal(signal, threshold):
 	events = []
 	# checking if threshold is within signals range
 
+	# construct 
+	check_signal = direction*(signal-threshold)
+
 	# thresholding
 	for i in range(5,len(signal)-6):
 		# four points, 5 below and 5 above threshold to count
-		sdif1 = signal[i-5]-threshold
-		sdif2 = signal[i]-threshold
-		sdif3 = signal[i+1]-threshold
-		sdif4 = signal[i+6]-threshold
+		sdif1 = check_signal[i-5]
+		sdif2 = check_signal[i]
+		sdif3 = check_signal[i+1]
+		sdif4 = check_signal[i+6]
 		if(sdif2*sdif3 < 0 and sdif1*sdif4 < 0):
 			if(sdif3 > 0 and sdif4 > 0):
 				#events.append(i+abs(sdif2)/(abs(sdif2)+abs(sdif3)))
@@ -232,7 +235,7 @@ def IRC_infer_step(events, phase, psi, signal_at_events, forcing, x0, dt, N_Four
 ### inference of phase dynamics ###
 ###################################
 
-def infer_phase_respones(signal, forcing, dt, threshold_signal=0., iterations=8, N_Fourier=10, SpeakToMe=True):
+def infer_phase_respones(signal, forcing, dt, threshold_signal=0., direction=1, iterations=8, N_Fourier=10, SpeakToMe=True):
 
 	signal = np.array(signal)
 	forcing = np.array(forcing)
@@ -240,7 +243,7 @@ def infer_phase_respones(signal, forcing, dt, threshold_signal=0., iterations=8,
 	### phase ###
 
 	if SpeakToMe==True: print('thresholding signal')
-	events = thresholding_signal(signal, threshold_signal)
+	events = thresholding_signal(signal, threshold_signal, direction=direction)
 
 	E_Z0 = error_Z0(events)
 
@@ -264,13 +267,13 @@ def infer_phase_respones(signal, forcing, dt, threshold_signal=0., iterations=8,
 
 	return omega, PRC_modes, phase, E_Z, E_Z0
 
-def infer_isostable_respones(signal, forcing, dt, phase, threshold_phase=np.pi, iterations=8, N_Fourier=10, SpeakToMe=True):
+def infer_isostable_respones(signal, forcing, dt, phase, threshold_phase=np.pi, direction=1, iterations=8, N_Fourier=10, SpeakToMe=True):
 	
 	signal = np.array(signal)
 	forcing = np.array(forcing)
 
 	if SpeakToMe==True: print('thresholding phase')
-	events = thresholding_signal(phase, threshold_phase)
+	events = thresholding_signal(phase, threshold_phase, direction=direction)
 	
 	signal_at_events = signal[events]
 	E_I0 = error_I0(signal_at_events)
